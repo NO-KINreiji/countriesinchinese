@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>国名暗記 Pro+</title>
+
+<style>
+body {
+  margin: 0;
+  font-family: sans-serif;
+  background: #0f1115;
+  color: #e6e6e6;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+}
+
+.container {
+  width: 90%;
+  max-width: 700px;
+  text-align: center;
+}
+
+button {
+  background: #1c1f26;
+  color: white;
+  border: 1px solid #444;
+  padding: 15px 20px;
+  margin: 10px;
+  font-size: 18px;
+  border-radius: 10px;
+}
+
+button:hover {
+  background: #2a2f3a;
+}
+
+.question {
+  font-size: 40px;
+  margin: 30px 0;
+}
+
+.flag {
+  font-size: 80px;
+}
+
+/* 揺れ防止カード */
+.card {
+  height: 300px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+/* 答え（最初非表示） */
+.answer {
+  margin-top: 20px;
+  font-size: 28px;
+  color: #9ecbff;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.answer.show {
+  opacity: 1;
+}
+
+.pinyin {
+  font-size: 22px;
+  color: #aaa;
+}
+
+.top-bar {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.hidden {
+  display: none;
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+<!-- スタート -->
+<div id="startScreen">
+  <h1>🌍 国名暗記 Pro+</h1>
+  <p>出題数を選択</p>
+
+  <button onclick="startGame(5)">5問</button>
+  <button onclick="startGame(10)">10問</button>
+  <button onclick="startGame(30)">30問</button>
+  <button onclick="startGame(50)">50問</button>
+</div>
+
+<!-- ゲーム -->
+<div id="gameScreen" class="hidden">
+
+  <div class="top-bar">
+    <div id="progress"></div>
+    <button onclick="exitGame()">途中退出</button>
+  </div>
+
+  <div id="card" class="card"></div>
+
+</div>
+
+<!-- 終了 -->
+<div id="endScreen" class="hidden">
+  <h2>終了！</h2>
+  <button onclick="backToStart()">もう一回</button>
+</div>
+
+</div>
+
+<script>
+
+// =========================
+// 国データ（50以上）
+// =========================
+const countries = [
+
+  {jp:"アイスランド",flag:"🇮🇸",zh:"冰岛",py:"bīng dǎo"},
+  {jp:"アイルランド",flag:"🇮🇪",zh:"愛爾蘭",py:"ài ěr lán"},
+  {jp:"アゼルバイジャン",flag:"🇦🇿",zh:"阿塞拜疆",py:"ā sài bài jiāng"},
+  {jp:"アフガニスタン",flag:"🇦🇫",zh:"阿富汗",py:"ā fù hàn"},
+  {jp:"アラブ首長国連邦",flag:"🇦🇪",zh:"阿拉伯联合酋长国",py:"ā lā bó lián hé qiú zhǎng guó"},
+  {jp:"アルジェリア",flag:"🇩🇿",zh:"阿尔及利亚",py:"ā ěr jí lì yà"},
+  {jp:"アルバニア",flag:"🇦🇱",zh:"阿尔巴尼亚",py:"ā ěr bā ní yà"},
+  {jp:"アルメニア",flag:"🇦🇲",zh:"亚美尼亚",py:"yà měi ní yà"},
+  {jp:"アンゴラ",flag:"🇦🇴",zh:"安哥拉",py:"ān gē lā"},
+  {jp:"アンティグア・バーブーダ",flag:"🇦🇬",zh:"安提瓜和巴布达",py:"ān tí guā hé bā bù dá"},
+  {jp:"アンドラ",flag:"🇦🇩",zh:"安道尔",py:"ān dào ěr"},
+  {jp:"イエメン",flag:"🇾🇪",zh:"也门",py:"yě mén"},
+  {jp:"イスラエル",flag:"🇮🇱",zh:"以色列",py:"yǐ sè liè"},
+  {jp:"イラク",flag:"🇮🇶",zh:"伊拉克",py:"yī lā kè"},
+  {jp:"イラン",flag:"🇮🇷",zh:"伊朗",py:"yī lǎng"},
+  {jp:"ウガンダ",flag:"🇺🇬",zh:"乌干达",py:"wū gān dá"},
+  {jp:"ウクライナ",flag:"🇺🇦",zh:"乌克兰",py:"wū kè lán"},
+  {jp:"ウズベキスタン",flag:"🇺🇿",zh:"乌兹别克斯坦",py:"wū zī bié kè sī tǎn"},
+  {jp:"ウルグアイ",flag:"🇺🇾",zh:"乌拉圭",py:"wū lā guī"},
+  {jp:"エクアドル",flag:"🇪🇨",zh:"厄瓜多尔",py:"è guā duō ěr"},
+  {jp:"エストニア",flag:"🇪🇪",zh:"爱沙尼亚",py:"ài shā ní yà"},
+  {jp:"エスワティニ",flag:"🇸🇿",zh:"埃斯瓦蒂尼",py:"āi sī wǎ dì ní"},
+  {jp:"エチオピア",flag:"🇪🇹",zh:"埃塞俄比亚",py:"āi sài é bǐ yà"},
+  {jp:"エリトリア",flag:"🇪🇷",zh:"厄立特里亚",py:"è lì tè lǐ yà"},
+  {jp:"オマーン",flag:"🇴🇲",zh:"阿曼",py:"ā màn"},
+  {jp:"オーストリア",flag:"🇦🇹",zh:"奥地利",py:"ào dì lì"},
+  {jp:"カザフスタン",flag:"🇰🇿",zh:"哈萨克斯坦",py:"hā sà kè sī tǎn"},
+  {jp:"カタール",flag:"🇶🇦",zh:"卡塔尔",py:"kǎ tǎ ěr"},
+  {jp:"ガーナ",flag:"🇬🇭",zh:"加纳",py:"jiā nà"},
+  {jp:"カーボベルデ",flag:"🇨🇻",zh:"佛得角",py:"fó dé jiǎo"},
+  {jp:"ガボン",flag:"🇬🇦",zh:"加蓬",py:"jiā péng"},
+  {jp:"カメルーン",flag:"🇨🇲",zh:"喀麦隆",py:"kā mài lóng"},
+  {jp:"ガンビア",flag:"🇬🇲",zh:"冈比亚",py:"gāng bǐ yà"},
+  {jp:"カンボジア",flag:"🇰🇭",zh:"柬埔寨",py:"jiǎn pǔ zhài"},
+  {jp:"ギニア",flag:"🇬🇳",zh:"几内亚",py:"jǐ nèi yà"},
+  {jp:"ギニアビサウ",flag:"🇬🇼",zh:"几内亚比绍",py:"jǐ nèi yà bǐ shào"},
+  {jp:"キプロス",flag:"🇨🇾",zh:"塞浦路斯",py:"sài pǔ lù sī"},
+  {jp:"キューバ",flag:"🇨🇺",zh:"古巴",py:"gǔ bā"},
+  {jp:"ギリシャ",flag:"🇬🇷",zh:"希腊",py:"xī là"},
+  {jp:"キリバス",flag:"🇰🇮",zh:"基里巴斯",py:"jī lǐ bā sī"},
+  {jp:"キルギス",flag:"🇰🇬",zh:"吉尔吉斯斯坦",py:"jí ěr jí sī sī tǎn"},
+  {jp:"グアテマラ",flag:"🇬🇹",zh:"危地马拉",py:"wēi dì mǎ lā"},
+  {jp:"クウェート",flag:"🇰🇼",zh:"科威特",py:"kē wēi tè"},
+  {jp:"クック諸島",flag:"🇨🇰",zh:"库克群岛",py:"kù kè qún dǎo"},
+  {jp:"グレナダ",flag:"🇬🇩",zh:"格林纳达",py:"gé lín nà dá"},
+  {jp:"クロアチア",flag:"🇭🇷",zh:"克罗地亚",py:"kè luó dì yà"},
+  {jp:"ケニア",flag:"🇰🇪",zh:"肯尼亚",py:"kěn ní yà"},
+  {jp:"コートジボワール",flag:"🇨🇮",zh:"科特迪瓦",py:"kē tè dí wǎ"},
+  {jp:"コスタリカ",flag:"🇨🇷",zh:"哥斯达黎加",py:"gē sī dá lí jiā"},
+  {jp:"コソボ",flag:"🇽🇰",zh:"科索沃",py:"kē suǒ wò"},
+  {jp:"コモロ",flag:"🇰🇲",zh:"科摩罗",py:"kē mó luó"},
+  {jp:"コンゴ共和国",flag:"🇨🇬",zh:"刚果共和国",py:"gāng guǒ gòng hé guó"},
+  {jp:"コンゴ民主共和国",flag:"🇨🇩",zh:"刚果民主共和国",py:"gāng guǒ mín zhǔ gòng hé guó"},
+  {jp:"サモア",flag:"🇼🇸",zh:"萨摩亚",py:"sà mó yà"},
+  {jp:"サントメ・プリンシペ",flag:"🇸🇹",zh:"圣多美和普林西比",py:"shèng duō měi hé pǔ lín xī bǐ"},
+  {jp:"ザンビア",flag:"🇿🇲",zh:"赞比亚",py:"zàn bǐ yà"},
+  {jp:"サンマリノ",flag:"🇸🇲",zh:"圣马力诺",py:"shèng mǎ lì nuò"},
+  {jp:"シエラレオネ",flag:"🇸🇱",zh:"塞拉利昂",py:"sāi lā lì áng"},
+  {jp:"ジブチ",flag:"🇩🇯",zh:"吉布提",py:"jí bù tí"},
+  {jp:"ジャマイカ",flag:"🇯🇲",zh:"牙买加",py:"yá mǎi jiā"},
+  {jp:"ジョージア",flag:"🇬🇪",zh:"格鲁吉亚",py:"gé lǔ jí yà"},
+  {jp:"シリア",flag:"🇸🇾",zh:"叙利亚",py:"xù lì yà"},
+  {jp:"ジンバブエ",flag:"🇿🇼",zh:"津巴布韦",py:"jīn bā bù wéi"},
+  {jp:"スーダン",flag:"🇸🇩",zh:"苏丹",py:"sū dān"},
+  {jp:"スリナム",flag:"🇸🇷",zh:"苏里南",py:"sū lǐ nán"},
+  {jp:"スリランカ",flag:"🇱🇰",zh:"斯里兰卡",py:"sī lǐ lán kǎ"},
+  {jp:"スロバキア",flag:"🇸🇰",zh:"斯洛伐克",py:"sī luò fá kè"},
+  {jp:"スロベニア",flag:"🇸🇮",zh:"斯洛文尼亚",py:"sī luò wén ní yà"},
+  {jp:"セーシェル",flag:"🇸🇨",zh:"塞舌尔",py:"sāi shé ěr"},
+  {jp:"赤道ギニア",flag:"🇬🇶",zh:"赤道几内亚",py:"chì dào jǐ nèi yà"},
+  {jp:"セネガル",flag:"🇸🇳",zh:"塞内加尔",py:"sài nèi jiā ěr"},
+  {jp:"セルビア",flag:"🇷🇸",zh:"塞尔维亚",py:"sài ěr wéi yà"},
+  {jp:"セントクリストファー・ネイビス",flag:"🇰🇳",zh:"圣基茨和尼维斯",py:"shèng jī cí hé ní wéi sī"},
+  {jp:"セントビンセント・グレナディーン",flag:"🇻🇨",zh:"圣文森特和格林纳丁斯",py:"shèng wén sēn tè hé gé lín nà dīng sī"},
+  {jp:"セントルシア",flag:"🇱🇨",zh:"圣卢西亚",py:"shèng lú xī yà"},
+  {jp:"ソマリア",flag:"🇸🇴",zh:"索马里",py:"suǒ mǎ lǐ"},
+  {jp:"ソロモン諸島",flag:"🇸🇧",zh:"所罗门群岛",py:"suǒ luó mén qún dǎo"},
+  {jp:"タイ",flag:"🇹🇭",zh:"泰国",py:"tài guó"},
+  {jp:"台湾",flag:"🇹🇼",zh:"台湾",py:"tái wān"},
+  {jp:"タジキスタン",flag:"🇹🇯",zh:"塔吉克斯坦",py:"tǎ jí kè sī tǎn"},
+  {jp:"タンザニア",flag:"🇹🇿",zh:"坦桑尼亚",py:"tǎn sāng ní yà"},
+  {jp:"チャド",flag:"🇹🇩",zh:"乍得",py:"zhà dé"},
+  {jp:"中央アフリカ",flag:"🇨🇫",zh:"中非共和国",py:"zhōng fēi gòng hé guó"},
+  {jp:"チュニジア",flag:"🇹🇳",zh:"突尼斯",py:"tū ní sī"},
+  {jp:"北朝鮮",flag:"🇰🇵",zh:"朝鲜",py:"cháo xiǎn"},
+  {jp:"ツバル",flag:"🇹🇻",zh:"图瓦卢",py:"tú wǎ lú"},
+  {jp:"テキサス",flag:"🇺🇸",zh:"德克萨斯",py:"dé kè sà sī"},
+  {jp:"トーゴ",flag:"🇹🇬",zh:"多哥",py:"duō gē"},
+  {jp:"ドミニカ共和国",flag:"🇩🇴",zh:"多米尼加共和国",py:"duō mǐ ní jiā gòng hé guó"},
+  {jp:"ドミニカ国",flag:"🇩🇲",zh:"多米尼克",py:"duō mǐ ní kè"},
+  {jp:"トリニダード・トバゴ",flag:"🇹🇹",zh:"特立尼达和多巴哥",py:"tè lì ní dá hé duō bā gē"},
+  {jp:"トルクメニスタン",flag:"🇹🇲",zh:"土库曼斯坦",py:"tǔ kù màn sī tǎn"},
+  {jp:"トンガ",flag:"🇹🇴",zh:"汤加",py:"tāng jiā"},
+  {jp:"ナイジェリア",flag:"🇳🇬",zh:"尼日利亚",py:"ní rì lì yà"},
+  {jp:"ナウル",flag:"🇳🇷",zh:"瑙鲁",py:"nǎo lǔ"},
+  {jp:"ナミビア",flag:"🇳🇦",zh:"纳米比亚",py:"nà mǐ bǐ yà"},
+  {jp:"ニカラグア",flag:"🇳🇮",zh:"尼加拉瓜",py:"ní jiā lā guā"},
+  {jp:"ニジェール",flag:"🇳🇪",zh:"尼日尔",py:"ní rì ěr"},
+  {jp:"ニュージーランド",flag:"🇳🇿",zh:"新西兰",py:"xīn xī lán"},
+  {jp:"ネパール",flag:"🇳🇵",zh:"尼泊尔",py:"ní bó ěr"},
+  {jp:"バヌアツ",flag:"🇻🇺",zh:"瓦努阿图",py:"wǎ nǔ ā tú"},
+  {jp:"バハマ",flag:"🇧🇸",zh:"巴哈马",py:"bā hā mǎ"},
+  {jp:"パプアニューギニア",flag:"🇵🇬",zh:"巴布亚新几内亚",py:"bā bù yà xīn jǐ nèi yà"},
+  {jp:"バミューダ",flag:"🇧🇲",zh:"百慕大",py:"bǎi mù dà"},
+  {jp:"パラオ",flag:"🇵🇼",zh:"帛琉",py:"bó liú"},
+  {jp:"パラグアイ",flag:"🇵🇾",zh:"巴拉圭",py:"bā lā guī"},
+  {jp:"パキスタン",flag:"🇵🇰",zh:"巴基斯坦",py:"bā jī sī tǎn"},
+  {jp:"パレスチナ",flag:"🇵🇸",zh:"巴勒斯坦",py:"bā lè sī tǎn"},
+  {jp:"バーレーン",flag:"🇧🇭",zh:"巴林",py:"bā lín"},
+  {jp:"バルバドス",flag:"🇧🇧",zh:"巴巴多斯",py:"bā bā duō sī"},
+  {jp:"バングラデシュ",flag:"🇧🇩",zh:"孟加拉国",py:"mèng jiā lā guó"},
+  {jp:"東ティモール",flag:"🇹🇱",zh:"东帝汶",py:"dōng dì wèn"},
+  {jp:"フィジー",flag:"🇫🇯",zh:"斐济",py:"fěi jì"},
+  {jp:"ブータン",flag:"🇧🇹",zh:"不丹",py:"bù dān"},
+  {jp:"ブルキナファソ",flag:"🇧🇫",zh:"布基纳法索",py:"bù jī nà fǎ suǒ"},
+  {jp:"ブルネイ",flag:"🇧🇳",zh:"文莱",py:"wén lái"},
+  {jp:"ブルンジ",flag:"🇧🇮",zh:"布隆迪",py:"bù lóng dí"},
+  {jp:"ブルガリア",flag:"🇧🇬",zh:"保加利亚",py:"bǎo jiā lì yà"},
+  {jp:"ベトナム",flag:"🇻🇳",zh:"越南",py:"yuè nán"},
+  {jp:"ベナン",flag:"🇧🇯",zh:"贝宁",py:"bèi níng"},
+  {jp:"ベネズエラ",flag:"🇻🇪",zh:"委内瑞拉",py:"wěi nèi ruì lā"},
+  {jp:"ベラルーシ",flag:"🇧🇾",zh:"白俄罗斯",py:"bái é luó sī"},
+  {jp:"ベリーズ",flag:"🇧🇿",zh:"伯利兹",py:"bó lì zī"},
+  {jp:"ボツワナ",flag:"🇧🇼",zh:"博茨瓦纳",py:"bó cí wǎ nà"},
+  {jp:"ボリビア",flag:"🇧🇴",zh:"玻利维亚",py:"bō lì wéi yà"},
+  {jp:"ポルトガル",flag:"🇵🇹",zh:"葡萄牙",py:"pú táo yá"},
+  {jp:"ホンジュラス",flag:"🇭🇳",zh:"洪都拉斯",py:"hóng dū lā sī"},
+  {jp:"ボスニア・ヘルツェゴビナ",flag:"🇧🇦",zh:"波斯尼亚和黑塞哥维那",py:"bō sī ní yà hé hēi sài gē wéi nà"},
+  {jp:"マダガスカル",flag:"🇲🇬",zh:"马达加斯加",py:"mǎ dá jiā sī jiā"},
+  {jp:"マラウイ",flag:"🇲🇼",zh:"马拉维",py:"mǎ lā wéi"},
+  {jp:"マリ",flag:"🇲🇱",zh:"马里",py:"mǎ lǐ"},
+  {jp:"マルタ",flag:"🇲🇹",zh:"马耳他",py:"mǎ ěr tā"},
+  {jp:"ミクロネシア連邦",flag:"🇫🇲",zh:"密克罗尼西亚联邦",py:"mì kè luó ní xī yà lián bāng"},
+  {jp:"ミャンマー",flag:"🇲🇲",zh:"缅甸",py:"miǎn diàn"},
+  {jp:"南スーダン",flag:"🇸🇸",zh:"南苏丹",py:"nán sū dān"},
+  {jp:"モナコ",flag:"🇲🇨",zh:"摩纳哥",py:"mó nà gē"},
+  {jp:"モルディブ",flag:"🇲🇻",zh:"马尔代夫",py:"mǎ ěr dài fū"},
+  {jp:"モルドバ",flag:"🇲🇩",zh:"摩尔多瓦",py:"mó ěr duō wǎ"},
+  {jp:"モロッコ",flag:"🇲🇦",zh:"摩洛哥",py:"mó luò gē"},
+  {jp:"モンゴル",flag:"🇲🇳",zh:"蒙古",py:"měng gǔ"},
+  {jp:"モンテネグロ",flag:"🇲🇪",zh:"黑山",py:"hēi shān"},
+  {jp:"モーリシャス",flag:"🇲🇺",zh:"毛里求斯",py:"máo lǐ qiú sī"},
+  {jp:"モーリタニア",flag:"🇲🇷",zh:"毛里塔尼亚",py:"máo lǐ tǎ ní yà"},
+  {jp:"ヨルダン",flag:"🇯🇴",zh:"约旦",py:"yuē dàn"},
+  {jp:"ラオス",flag:"🇱🇦",zh:"老挝",py:"lǎo wō"},
+  {jp:"ラトビア",flag:"🇱🇻",zh:"拉脱维亚",py:"lā tuō wéi yà"},
+  {jp:"リトアニア",flag:"🇱🇹",zh:"立陶宛",py:"lì táo wǎn"},
+  {jp:"リビア",flag:"🇱🇾",zh:"利比亚",py:"lì bǐ yà"},
+  {jp:"リヒテンシュタイン",flag:"🇱🇮",zh:"列支敦士登",py:"liè zhī dūn shì dēng"},
+  {jp:"リベリア",flag:"🇱🇷",zh:"利比里亚",py:"lì bǐ lǐ yà"},
+  {jp:"ルーマニア",flag:"🇷🇴",zh:"罗马尼亚",py:"luó mǎ ní yà"},
+  {jp:"ルクセンブルク",flag:"🇱🇺",zh:"卢森堡",py:"lú sēn bǎo"},
+  {jp:"ルワンダ",flag:"🇷🇼",zh:"卢旺达",py:"lú wàng dá"},
+  {jp:"レソト",flag:"🇱🇸",zh:"莱索托",py:"lái suǒ tuō"},
+  {jp:"レバノン",flag:"🇱🇧",zh:"黎巴嫩",py:"lí bā nèn"},
+  {jp:"バチカン市国",flag:"🇻🇦",zh:"梵蒂冈",py:"fàn dì gāng"},
+  {jp:"ニウエ",flag:"🇳🇺",zh:"纽埃",py:"niǔ āi"}
+];
+
+// =========================
+// 状態
+// =========================
+let quiz = [];
+let index = 0;
+let answered = false;
+
+// 拼音整形
+function formatPinyin(py){
+  return py.split(" ").join("  ");
+}
+
+// =========================
+// ランダム出題（重要）
+// =========================
+function startGame(count){
+  document.getElementById("startScreen").classList.add("hidden");
+  document.getElementById("endScreen").classList.add("hidden");
+  document.getElementById("gameScreen").classList.remove("hidden");
+
+  // 毎回ランダム抽出
+  quiz = shuffle([...countries]).slice(0, count);
+
+  index = 0;
+  showQuestion();
+}
+
+// シャッフル
+function shuffle(arr){
+  return arr.sort(()=>Math.random()-0.5);
+}
+
+// =========================
+// 表示（固定カード）
+// =========================
+function showQuestion(){
+  answered = false;
+  const q = quiz[index];
+
+  document.getElementById("progress").textContent =
+    `${index+1} / ${quiz.length}`;
+
+  document.getElementById("card").innerHTML = `
+    <div class="question">${q.jp}</div>
+    <div class="flag">${q.flag}</div>
+    <div id="ans" class="answer">
+      ${q.zh}<br>
+      <span class="pinyin">${formatPinyin(q.py)}</span>
+    </div>
+  `;
+}
+
+// =========================
+// タップ処理
+// =========================
+document.getElementById("gameScreen").addEventListener("click", () => {
+
+  if(index >= quiz.length) return;
+
+  if(!answered){
+    document.getElementById("ans").classList.add("show");
+    answered = true;
+  } else {
+    index++;
+    if(index >= quiz.length){
+      endGame();
+    } else {
+      showQuestion();
+    }
+  }
+});
+
+// =========================
+// 終了
+// =========================
+function endGame(){
+  document.getElementById("gameScreen").classList.add("hidden");
+  document.getElementById("endScreen").classList.remove("hidden");
+}
+
+// 戻る
+function backToStart(){
+  document.getElementById("endScreen").classList.add("hidden");
+  document.getElementById("startScreen").classList.remove("hidden");
+}
+
+// 退出
+function exitGame(){
+  document.getElementById("gameScreen").classList.add("hidden");
+  document.getElementById("startScreen").classList.remove("hidden");
+}
+
+</script>
+
+</body>
+</html>
+
